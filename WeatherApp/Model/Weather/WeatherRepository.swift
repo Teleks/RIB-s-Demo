@@ -16,12 +16,12 @@ final class DefaultWeatherRepository: WeatherRepository {
         return forecast(for: city, in: Realm.shared)?.temperature.current
     }
 
-    func forecast(for city: String, in realm: Realm) -> BaseForecast? {
-        guard let entity = realm.object(ofType: RealmBaseForecast.self, forPrimaryKey: city) else { return nil }
+    func forecast(for cityID: String, in realm: Realm) -> BaseForecast? {
+        guard let entity = realm.object(ofType: RealmBaseForecast.self, forPrimaryKey: cityID) else { return nil }
         return entity.toBaseForecast()
     }
 
-    func saveForecast(for city: String, with forecast: BaseForecast) -> Single<BaseForecast> {
+    func saveForecast(for cityID: String, with forecast: BaseForecast) -> Single<BaseForecast> {
         Single<BaseForecast>.create { (s) -> Disposable in
             do {
                 let realm = try Realm()
@@ -29,11 +29,13 @@ final class DefaultWeatherRepository: WeatherRepository {
                 try realm.write({
                     let cityForecast: RealmBaseForecast
 
-                    if let entity = realm.object(ofType: RealmBaseForecast.self, forPrimaryKey: city) {
+                    if let entity = realm.object(ofType: RealmBaseForecast.self, forPrimaryKey: cityID) {
                         entity.update(with: forecast)
                         cityForecast = entity
                     } else {
                         let entity = RealmBaseForecast(forecast)
+                        entity.cityID = forecast.cityID
+
                         realm.add(entity)
                         cityForecast = entity
                     }

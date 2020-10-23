@@ -9,6 +9,7 @@ import Foundation
 
 struct BaseForecast {
 
+    let cityID: String
     let cityName: String
     let location: Coordinate
 
@@ -54,19 +55,21 @@ struct BaseForecast {
 
 extension BaseForecast {
 
-    init(_ obj: OpenWeatherBaseForecast) {
+    init(_ obj: OpenWeatherBaseForecast, cityID: String) {
+        self.cityID = cityID
         self.cityName = obj.name
         self.location = Coordinate(latitude: obj.coord.lat, longitude: obj.coord.lon)
 
         let main = obj.main
+        let weather = obj.weather.first!
 
         self.temperature = Temperature(current: Int(main.temp), minimum: Int(main.tempMin), maximum: Int(main.tempMax))
         self.conditions = Conditions(visibility: obj.visibility,
                                      pressure: main.pressure,
                                      humidity: main.humidity,
                                      clouds: obj.clouds.all,
-                                     icon: obj.weather.icon,
-                                     textDescription: obj.weather.weatherDescription)
+                                     icon: weather.icon,
+                                     textDescription: weather.weatherDescription)
 
         self.wind = Wind(speed: obj.wind.speed, direction: obj.wind.deg)
         self.sun = Sun(sunrise: obj.sys.sunrise, sunset: obj.sys.sunset)

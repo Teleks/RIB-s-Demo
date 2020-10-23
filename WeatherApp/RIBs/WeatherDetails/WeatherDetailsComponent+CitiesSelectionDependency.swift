@@ -9,4 +9,5 @@ import Foundation
 
 extension WeatherDetailsComponent: CitiesSelectionDependency {
 
+    var isCancellable: Bool { city != nil }
 }

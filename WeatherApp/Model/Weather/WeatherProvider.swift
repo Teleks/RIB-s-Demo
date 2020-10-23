@@ -13,7 +13,9 @@ import RxRelay
 protocol WeatherProvider {
     var baseForecast: Driver<BaseForecast?> { get }
 
-    func temperature(in city: String) -> Int?
+    func loadBaseWeather(for city: City)
+    func temperature(in city: City) -> Int?
+    func dailyForecast(in city: City) -> Single<[DailyForecast]>
 }
 
 protocol WeatherRepository {
@@ -25,25 +27,48 @@ final class DefaultWeatherProvider: WeatherProvider {
 
     var baseForecast: Driver<BaseForecast?> { _baseForecast.asDriver() }
 
-	// MARK: - Lifecycle
+    // MARK: - Lifecycle
 
-    init(repository: WeatherRepository) {
-        self.repository = repository
+    init(weatherRepository: WeatherRepository, cityRepository: CityRepository) {
+        self.weatherRepository = weatherRepository
+        self.cityRepository = cityRepository
     }
 
     // MARK: - Actions
 
-    func temperature(in city: String) -> Int? {
-        return repository.temperature(in: city)
+    func temperature(in city: City) -> Int? {
+        return weatherRepository.temperature(in: city.id)
+    }
+
+    func dailyForecast(in city: City) -> Single<[DailyForecast]> {
+        let queryParams: [String: String] = [
+            "q": city.cityName,
+            "appId": AppConfig.weatherApiKey
+        ]
+
+        var urlComps = URLComponents(url: AppConfig.weatherApiUrl, resolvingAgainstBaseURL: false)!
+        urlComps.path = "\(urlComps.path)/forecast"
+        urlComps.queryItems = queryParams.map(URLQueryItem.init)
+
+        let request = URLRequest(url: urlComps.url!)
+
+        return urlSession.rx.data(request: request)
+            .map({ [unowned self] in
+                return try jsonResponseDecoder.decode(OpenWeatherDailyForecast.self, from: $0)
+            })
+            .map({ $0.list.map({ DailyForecast($0, cityID: city.id) }) })
+            .observeOn(MainScheduler.asyncInstance)
+            .asSingle()
     }
 
     // MARK: - Private
 
     private let _baseForecast = BehaviorRelay<BaseForecast?>(value: nil)
-	private let disposeBag = DisposeBag()
+    private let disposeBag = DisposeBag()
     private let urlSession = URLSession.shared
 
-    private let repository: WeatherRepository
+    private let cityRepository: CityRepository
+    private let weatherRepository: WeatherRepository
 
     private let jsonResponseDecoder: JSONDecoder = {
         let decoder = JSONDecoder()
@@ -52,35 +77,30 @@ final class DefaultWeatherProvider: WeatherProvider {
         return decoder
     }()
 
-    private func queryString(with params: [String: String]) -> String {
-		params
-            .map({ "\($0)=\($1)" })
-            .joined(separator: "&")
-            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)!
-    }
-
-    private func loadBaseWeather(for city: String) {
+    func loadBaseWeather(for city: City) {
         let queryParams: [String: String] = [
-            "q": city,
+            "q": city.cityName,
             "appId": AppConfig.weatherApiKey
         ]
 
-        let url = AppConfig.weatherApiUrl.appendingPathComponent("weather")
-            .appendingPathComponent("?q=\(queryString(with: queryParams))")
-
-        let request = URLRequest(url: url)
+        var urlComps = URLComponents(url: AppConfig.weatherApiUrl, resolvingAgainstBaseURL: false)!
+        urlComps.path = "\(urlComps.path)/weather"
+        urlComps.queryItems = queryParams.map(URLQueryItem.init)
+        
+        let request = URLRequest(url: urlComps.url!)
 
         urlSession.rx.data(request: request)
             .map({ [unowned self] in
                 return try jsonResponseDecoder.decode(OpenWeatherBaseForecast.self, from: $0)
             })
-            .map(BaseForecast.init)
-            .flatMapLatest({ [unowned self] in
-                repository.saveForecast(for: city, with: $0)
-            })
+            .map({ BaseForecast($0, cityID: city.id) })
+            .observeOn(MainScheduler.asyncInstance)
             .asSingle()
-            .subscribe({ [unowned self] in
-                switch $0 {
+            .flatMap({ [unowned self] forecast -> Single<BaseForecast> in
+                return weatherRepository.saveForecast(for: city.id, with: forecast)
+            })
+            .subscribe({ [unowned self] (event) in
+                switch event {
                 case .success(let forecast):
                     _baseForecast.accept(forecast)
                 case .error(let error):

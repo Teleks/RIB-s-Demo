@@ -13,7 +13,7 @@ struct OpenWeatherBaseForecast: Decodable {
     let name: String
     let cod: Int
     let coord: Coordinate
-    let weather: Weather
+    let weather: [Weather]
     let base: String
     let main: Main
     let visibility: Int
@@ -61,7 +61,7 @@ struct OpenWeatherBaseForecast: Decodable {
     struct ServiceInfo: Decodable {
         let type: Int
         let id: Int
-        let message: Int
+        let message: Int?
         let country: String
         let sunrise: TimeInterval
         let sunset: TimeInterval

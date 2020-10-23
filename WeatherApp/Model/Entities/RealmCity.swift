@@ -9,17 +9,24 @@ import Foundation
 import RealmSwift
 
 final class RealmCity: Object {
-    @objc dynamic var title: String = ""
+    @objc dynamic var id: String = ""
+    @objc dynamic var cityName: String = ""
 
     override class func primaryKey() -> String? {
-        return "title"
+        return "cityName"
     }
 }
 
 extension RealmCity {
 
-    convenience init(title: String) {
+    convenience init(city: City) {
         self.init()
-        self.title = title
+
+        self.id = city.id
+        self.cityName = city.cityName
+    }
+
+    func toCity() -> City {
+        City(id: id, cityName: cityName)
     }
 }

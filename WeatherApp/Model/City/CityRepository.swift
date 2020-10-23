@@ -13,30 +13,34 @@ final class DefaultCityRepository: CityRepository {
 
 	// MARK: - Actions
 
-    func allCities() -> [String] {
-        return Realm.shared.objects(RealmCity.self).map(\.title)
+    func allCities() -> [City] {
+        return Realm.shared.objects(RealmCity.self).map({ $0.toCity() })
     }
 
-    func citiesMatchingText(_ text: String) -> [String] {
+    func cityWithName(_ cityName: String) -> City? {
+        return Realm.shared.object(ofType: RealmCity.self, forPrimaryKey: cityName)?.toCity()
+    }
+
+    func citiesMatchingText(_ text: String) -> [City] {
         guard !text.isEmpty else { return allCities() }
-        return allCities().filter({ $0.contains(text) })
+        return allCities().filter({ $0.cityName.lowercased().contains(text.lowercased()) })
     }
 
-    func addCity(_ city: String) -> Single<String> {
-        Single<String>.create { (s) -> Disposable in
+    func addCity(_ city: City) -> Single<City> {
+        Single<City>.create { (s) -> Disposable in
             do {
                 let realm = try Realm()
 
-                guard realm.object(ofType: RealmCity.self, forPrimaryKey: city) == nil else {
+                guard realm.object(ofType: RealmCity.self, forPrimaryKey: city.cityName) == nil else {
                     s(.success(city))
                     return Disposables.create()
                 }
 
                 try realm.write {
-                    let obj = RealmCity(title: city)
+                    let obj = RealmCity(city: city)
                     realm.add(obj)
 
-                    s(.success(obj.title))
+                    s(.success(obj.toCity()))
                 }
             } catch {
                 s(.error(error))

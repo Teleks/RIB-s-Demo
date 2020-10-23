@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct CityEntity {
+struct City {
     let id: String
     let cityName: String
 }

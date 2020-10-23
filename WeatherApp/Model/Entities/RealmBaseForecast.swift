@@ -9,6 +9,7 @@ import Foundation
 import RealmSwift
 
 final class RealmBaseForecast: Object {
+    @objc dynamic var cityID: String = ""
     @objc dynamic var cityName: String = ""
     @objc dynamic var base: String = ""
     @objc dynamic var visibility: Int = 0
@@ -36,7 +37,7 @@ final class RealmBaseForecast: Object {
     @objc dynamic var sunset: TimeInterval = 0.0
 
     override class func primaryKey() -> String? {
-        return "cityName"
+        return "cityID"
     }
 }
 
@@ -85,7 +86,8 @@ extension RealmBaseForecast {
                                                  icon: weatherIcon,
                                                  textDescription: weatherDescription)
 
-        return BaseForecast(cityName: cityName,
+        return BaseForecast(cityID: cityID,
+                            cityName: cityName,
                             location: BaseForecast.Coordinate(latitude: lat, longitude: lon),
                             temperature: BaseForecast.Temperature(current: temperature, minimum: temperatureMin, maximum: temperatureMax),
                             conditions: conditions,

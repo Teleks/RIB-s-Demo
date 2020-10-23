@@ -24,6 +24,12 @@ final class CitiesSelectionViewController: UIViewController, CitiesSelectionPres
 
     weak var listener: CitiesSelectionPresentableListener?
 
+    var isCancellable: Bool = true {
+        didSet {
+            navigationItem.leftBarButtonItem?.isEnabled = isCancellable
+        }
+    }
+
     private let kCityCell = "kCityCell"
 
     private let disposeBag = DisposeBag()
@@ -76,6 +82,7 @@ final class CitiesSelectionViewController: UIViewController, CitiesSelectionPres
         }
 
         alertVC.addTextField { [self] in
+            $0.autocapitalizationType = .words
             $0.placeholder = "Type your city name..."
 
             $0.rx.text
@@ -101,6 +108,10 @@ extension CitiesSelectionViewController: UITableViewDataSource, UITableViewDeleg
         return cities.count
     }
 
+    func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+        return 1
+    }
+
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         guard let cell = tableView.dequeueReusableCell(withIdentifier: kCityCell) as? CityRecordCell else {
             fatalError("Cell with ID \'\(kCityCell)\' is not registered!")
@@ -111,7 +122,7 @@ extension CitiesSelectionViewController: UITableViewDataSource, UITableViewDeleg
         cell.cityNameLabel.text = record.cityName
 
         if let temperature = record.temperature {
-        	cell.temperatureLabel.text = String(format: "%d° C", temperature)
+        	cell.temperatureLabel.text = String(format: "%d °F", temperature.fahrengeit)
         } else {
             cell.temperatureLabel.text = "—"
         }

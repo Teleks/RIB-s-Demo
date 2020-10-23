@@ -21,7 +21,7 @@ protocol CitiesSelectionPresentable: Presentable {
 }
 
 protocol CitiesSelectionListener: class {
-    func didSelectCities(_ city: String)
+    func didSelectCities(_ city: City)
     func didCancelCitySelection()
 }
 
@@ -58,7 +58,7 @@ final class CitiesSelectionInteractor: PresentableInteractor<CitiesSelectionPres
             .map({ [unowned self] in
                 $0.map({
                     let temperature = weatherProvider.temperature(in: $0)
-                    return CityRecord(cityName: $0, temperature: temperature)
+                    return CityRecord(cityName: $0.cityName, temperature: temperature)
                 })
             })
             .drive(onNext: { [unowned presenter] in
@@ -70,7 +70,7 @@ final class CitiesSelectionInteractor: PresentableInteractor<CitiesSelectionPres
     private func subscribeToTemperatureUpdate() {
         weatherProvider.baseForecast
             .withLatestFrom(cityProvider.cities.asDriver(onErrorJustReturn: []), resultSelector: { (forecast, cities) in
-                guard let forecast = forecast, let cityIndex = cities.firstIndex(of: forecast.cityName) else {
+                guard let forecast = forecast, let cityIndex = cities.firstIndex(where: { $0.id == forecast.cityID }) else {
                     return (cityIndex: nil, temperature: nil)
                 }
                 return (cityIndex: cityIndex, temperature: forecast.temperature.current)
@@ -116,7 +116,7 @@ final class CitiesSelectionInteractor: PresentableInteractor<CitiesSelectionPres
 
     // MARK: - Private
 
-    private func city(at cityIndex: Int) -> Observable<String> {
+    private func city(at cityIndex: Int) -> Observable<City> {
         Observable<Int>.just(cityIndex)
             .withLatestFrom(cityProvider.cities, resultSelector: { $1[$0] })
     }

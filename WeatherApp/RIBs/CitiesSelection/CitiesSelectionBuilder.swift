@@ -8,13 +8,16 @@
 import RIBs
 
 protocol CitiesSelectionDependency: Dependency {
-    // TODO: Declare the set of dependencies required by this RIB, but cannot be
-    // created by this RIB.
+    var weatherProvider: WeatherProvider { get }
+
+    var isCancellable: Bool { get }
 }
 
 final class CitiesSelectionComponent: Component<CitiesSelectionDependency> {
 
-    // TODO: Declare 'fileprivate' dependencies that are only used by this RIB.
+    var weatherProvider: WeatherProvider { dependency.weatherProvider }
+
+    fileprivate let cityProvider = DefaultCityProvider(repository: DefaultCityRepository())
 }
 
 // MARK: - Builder
@@ -33,11 +36,11 @@ final class CitiesSelectionBuilder: Builder<CitiesSelectionDependency>, CitiesSe
         let component = CitiesSelectionComponent(dependency: dependency)
         let storyboard = UIStoryboard(name: "CitiesSelection", bundle: nil)
         let viewController = storyboard.instantiateViewController(withIdentifier: "CitiesSelectionViewController") as! CitiesSelectionViewController
+        viewController.isCancellable = dependency.isCancellable
 
-        let cityRepo = DefaultCityRepository()
-        let cityProvider = DefaultCityProvider(repository: cityRepo)
-        let weatherProvider = DefaultWeatherProvider(repository: DefaultWeatherRepository())
-        let interactor = CitiesSelectionInteractor(presenter: viewController, cityProvider: cityProvider, weatherProvider: weatherProvider)
+        let interactor = CitiesSelectionInteractor(presenter: viewController,
+                                                   cityProvider: component.cityProvider,
+                                                   weatherProvider: component.weatherProvider)
         interactor.listener = listener
 
         return CitiesSelectionRouter(interactor: interactor, viewController: viewController)

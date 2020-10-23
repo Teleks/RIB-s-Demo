@@ -31,7 +31,7 @@ final class WeatherDetailsRouter: LaunchRouter<WeatherDetailsInteractable, Weath
 
     // MARK: - Routing
 
-    func routeToCitiesSelection() {
+    func routeToCitiesSelection(cancellable: Bool) {
         let routing = citiesSelectionBuilder.build(withListener: interactor)
 
         let vc = routing.viewControllable.uiviewController

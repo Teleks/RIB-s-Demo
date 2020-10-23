@@ -11,7 +11,7 @@ import RxCocoa
 import RxRelay
 
 protocol CityProvider: AnyObject {
-    var cities: Observable<[String]> { get }
+    var cities: Observable<[City]> { get }
 }
 
 protocol SearchableCityProvider: CityProvider {
@@ -19,19 +19,20 @@ protocol SearchableCityProvider: CityProvider {
 }
 
 protocol UpdatableCityProvider: CityProvider {
-    func addCity(_ city: String)
+    func addCity(_ cityName: String)
 }
 
 protocol CityRepository {
-    func allCities() -> [String]
-    func citiesMatchingText(_ text: String) -> [String]
+    func allCities() -> [City]
+    func cityWithName(_ cityName: String) -> City?
+    func citiesMatchingText(_ text: String) -> [City]
 
-    func addCity(_ city: String) -> Single<String>
+    func addCity(_ city: City) -> Single<City>
 }
 
 final class DefaultCityProvider: SearchableCityProvider, UpdatableCityProvider {
 
-    var cities: Observable<[String]> { _cities.asObservable() }
+    var cities: Observable<[City]> { _cities.asObservable() }
 
     private let repository: CityRepository
 
@@ -39,7 +40,19 @@ final class DefaultCityProvider: SearchableCityProvider, UpdatableCityProvider {
 
     init(repository: CityRepository) {
         self.repository = repository
+        prepareList()
 		prepareSearchTextObservable()
+    }
+
+    // MARK: - Setup
+
+    private func prepareList() {
+        let cities = repository.allCities()
+
+        if cities.isEmpty {
+            addCity("Moscow")
+            addCity("Minsk")
+        }
     }
 
     // MARK: - Actions
@@ -48,7 +61,9 @@ final class DefaultCityProvider: SearchableCityProvider, UpdatableCityProvider {
         _searchText.accept(text)
     }
 
-    func addCity(_ city: String) {
+    func addCity(_ cityName: String) {
+        let city = City(id: UUID().uuidString, cityName: cityName)
+
         repository.addCity(city)
             .map({ [unowned self] _ in
                 citiesMatchingText(_searchText.value)
@@ -63,7 +78,7 @@ final class DefaultCityProvider: SearchableCityProvider, UpdatableCityProvider {
 
     private let kCitySearchDelay: DispatchTimeInterval = .milliseconds(500)
 
-    private let _cities = BehaviorRelay<[String]>(value: [])
+    private let _cities = BehaviorRelay<[City]>(value: [])
     private let _searchText = BehaviorRelay<String>(value: "")
 
     private let disposeBag = DisposeBag()
@@ -78,30 +93,26 @@ final class DefaultCityProvider: SearchableCityProvider, UpdatableCityProvider {
             .disposed(by: disposeBag)
     }
 
-    private func searchCitiesObserver(recover: Bool = false) -> Observable<[String]> {
+    private func searchCitiesObserver(recover: Bool = false) -> Observable<[City]> {
         let observable = recover ? _searchText.asObservable().skip(1) : _searchText.asObservable()
 
         return observable
             .distinctUntilChanged()
             .debounce(kCitySearchDelay, scheduler: MainScheduler.asyncInstance)
-            .map({ [unowned self] searchText -> [String] in
+            .map({ [unowned self] searchText -> [City] in
                 print("Search by: \(searchText)")
                 return citiesMatchingText(searchText)
             })
-            .catchError({ [unowned self] (error) -> Observable<[String]> in
+            .catchError({ [unowned self] (error) -> Observable<[City]> in
                 print("Error: \(error)")
                 return searchCitiesObserver(recover: true)
             })
     }
 
-    private func citiesMatchingText(_ text: String) -> [String] {
+    private func citiesMatchingText(_ text: String) -> [City] {
         repository.citiesMatchingText(text)
-        .sorted(by: { (str1, str2) -> Bool in
-            return str1.compare(str2) == .orderedAscending
-        })
+            .sorted(by: { (str1, str2) -> Bool in
+                return str1.cityName.compare(str2.cityName) == .orderedAscending
+            })
     }
-}
-
-struct City {
-    let cityName: String
 }
